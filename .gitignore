@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+._*
+
+# IDE
+.idea/
+.vscode/
+
+# 编译产物（走 GitHub Releases 分发，不进仓库）
+dist/
+*.exe
+wbdrop-macos-amd64
+wbdrop-macos-arm64
+
+# 脚本运行时生成的诊断输出
+win-fix.txt
+win-diag.txt

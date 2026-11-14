@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WBDrop · 拖了就发</title>
+<style>
+  :root{
+    --bg:#141517; --card:#1c1e21; --card2:#232529; --line:#2e3135;
+    --fg:#e6e7e9; --fg2:#a0a4aa; --fg3:#6b7077;
+    --accent:#3fa9a0; --accent2:#2c7f79;
+    --danger:#d9534f; --ok:#4caf7d; --warn:#d9a441;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--fg);min-height:100vh;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:14px;line-height:1.6;padding:26px 20px 60px;
+  }
+  .wrap{max-width:860px;margin:0 auto}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .brand{font-size:17px;font-weight:600;letter-spacing:.3px}
+  .brand .ver{font-size:11px;color:var(--fg3);font-weight:400;margin-left:7px;font-family:var(--mono)}
+  .pill{font-size:12px;padding:4px 11px;border-radius:20px;background:var(--card2);color:var(--fg2);border:1px solid var(--line)}
+  .pill.on{color:var(--ok);border-color:rgba(76,175,125,.4)}
+  .pill.off{color:var(--danger);border-color:rgba(217,83,79,.4)}
+  .pill.warn{color:var(--warn);border-color:rgba(217,164,65,.45)}
+  .bar-top{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .bar-top .lbl{font-size:12.5px;color:var(--fg3);flex-shrink:0}
+  select,input{
+    background:var(--card2);border:1px solid var(--line);border-radius:7px;
+    padding:8px 10px;color:var(--fg);font-size:13px;outline:none;font-family:inherit;
+  }
+  input:focus,select:focus{border-color:var(--accent2)}
+  #target{flex:1;min-width:0;font-family:var(--mono);font-size:13px}
+  button{
+    cursor:pointer;border:1px solid var(--line);background:var(--card2);color:var(--fg);
+    padding:7px 14px;border-radius:7px;font-size:12.5px;font-family:inherit;transition:.15s;white-space:nowrap;
+  }
+  button:hover{border-color:var(--accent2);color:#fff}
+  button.primary{background:var(--accent2);border-color:var(--accent2);color:#fff}
+  button.primary:hover{background:var(--accent)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.mini{padding:3px 9px;font-size:11.5px}
+  .drop{
+    border:1.5px dashed var(--line);background:var(--card);border-radius:12px;
+    text-align:center;padding:52px 20px;cursor:pointer;transition:.18s;
+  }
+  .drop:hover,.over .drop{border-color:var(--accent);background:rgba(63,169,160,.06)}
+  .drop-title{font-size:17px;font-weight:500;margin-bottom:7px}
+  .drop-sub{font-size:12.5px;color:var(--fg3)}
+  .drop-sub b{color:var(--accent);font-weight:500;font-family:var(--mono)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:15px 18px;margin-top:14px}
+  h2{font-size:12.5px;font-weight:600;color:var(--fg2);letter-spacing:.4px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+  .empty{font-size:12.5px;color:var(--fg3);padding:6px 0}
+  .item{padding:9px 0;border-bottom:1px solid var(--line)}
+  .item:last-child{border-bottom:none}
+  .item-top{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;align-items:baseline}
+  .fname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .fmeta{color:var(--fg3);font-size:11.5px;font-family:var(--mono);flex-shrink:0}
+  .bar{height:3px;background:var(--card2);border-radius:2px;margin-top:7px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:2px;transition:width .15s linear}
+  .bar.err i{background:var(--danger)} .bar.done i{background:var(--ok)}
+  .st-done{color:var(--ok)} .st-err{color:var(--danger)}
+  .warn{font-size:11.5px;color:var(--warn);background:rgba(217,164,65,.08);border:1px solid rgba(217,164,65,.25);padding:9px 11px;border-radius:7px;margin-top:12px;line-height:1.55}
+  .hint{font-size:11.5px;color:var(--fg3);line-height:1.6;margin-top:8px}
+  .kv{display:flex;justify-content:space-between;gap:12px;padding:4px 0;font-size:12.5px;align-items:baseline}
+  .kv span{color:var(--fg3);flex-shrink:0}
+  .kv b{font-weight:500;text-align:right;word-break:break-all;font-family:var(--mono);font-size:12px}
+  .code{color:var(--accent);letter-spacing:2px;cursor:pointer}
+  label{display:block;font-size:11.5px;color:var(--fg3);margin:9px 0 4px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+  .peer-row{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+  .peer-row:last-child{border-bottom:none}
+  .peer-row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .peer-row .ad{font-family:var(--mono);font-size:11.5px;color:var(--fg3)}
+  .tag{font-size:10.5px;color:var(--ok);border:1px solid rgba(76,175,125,.35);border-radius:4px;padding:1px 5px}
+  .errline{font-size:11.5px;color:var(--danger);margin-top:4px}
+  .okline{font-size:11.5px;color:var(--ok);margin-top:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">WBDrop<span class="ver">v2.0</span></div>
+    <div class="pill" id="status">初始化中</div>
+  </header>
+
+  <div class="bar-top">
+    <span class="lbl">发送给</span>
+    <select id="target"></select>
+    <button id="btn-settings">设置</button>
+  </div>
+
+  <div class="drop" id="drop">
+    <input type="file" id="file" multiple hidden>
+    <div class="drop-title">把文件拖到这里，立即发送</div>
+    <div class="drop-sub" id="drop-sub">或点击选择文件 · 支持一次拖多个</div>
+  </div>
+
+  <div class="card" id="settings" hidden>
+    <h2>设置 <button class="mini" id="btn-settings-close">收起</button></h2>
+
+    <div class="kv"><span>本机配对码（给对方填）</span><b id="self-code" class="code" title="点击复制">—</b></div>
+    <div class="kv"><span>接收目录</span><b id="self-dir">—</b></div>
+    <div class="kv"><span>本机名称</span><b id="self-name">—</b></div>
+
+    <label>直连网卡（选插着对端网线的那块，切换后自动记住）</label>
+    <div class="bar-top" style="margin-bottom:0">
+      <select id="bind-sel" style="flex:1;min-width:0"></select>
+      <button id="btn-bind" class="primary">保存</button>
+    </div>
+    <div id="bind-note" class="hint"></div>
+
+    <h2 style="margin-top:22px">已保存的对端</h2>
+    <div id="peers"></div>
+
+    <h2 style="margin-top:20px" id="form-title">添加对端</h2>
+    <div class="grid">
+      <div><label>别名</label><input id="f-alias" placeholder="如：内网机" autocomplete="off"></div>
+      <div><label>IP 地址</label><input id="f-ip" placeholder="10.20.30.40" autocomplete="off" spellcheck="false"></div>
+      <div><label>对方的配对码</label><input id="f-code" placeholder="对方界面显示的 6 位数字" autocomplete="off" spellcheck="false"></div>
+      <div><label>端口</label><input id="f-port" value="18432" autocomplete="off" spellcheck="false"></div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button id="btn-peer-save" class="primary">保存并测试</button>
+      <button id="btn-peer-cancel" hidden>取消编辑</button>
+    </div>
+    <div id="form-note"></div>
+    <p class="hint">「对方的配对码」在对方程序界面的设置里；本机配对码在上方，给对方填。两端各保存一次，之后永久生效。</p>
+  </div>
+
+  <div class="card">
+    <h2>发送记录 <button class="mini" id="btn-clear">清空</button></h2>
+    <div id="sent"><div class="empty">暂无记录</div></div>
+    <div class="warn" id="warn" hidden></div>
+  </div>
+
+  <div class="card">
+    <h2>接收（来自对端）</h2>
+    <div id="recv"><div class="empty">空闲</div></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const DEFAULT_PORT = 18432;
+const state = { cfg: null, meta: null, items: [], sending: false, editing: '', busy: false };
+
+/* ---------------- 通用 ---------------- */
+function fmtSize(n){ if(!n) return '0 B'; const u=['B','KB','MB','GB']; let i=0,v=n;
+  while(v>=1024&&i<u.length-1){v/=1024;i++;} return (i===0?v:v.toFixed(v<10?1:0))+' '+u[i]; }
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function activePeer(){ const c=state.cfg; if(!c) return null; return (Array.isArray(c.peers)?c.peers:[]).find(p=>p.id===c.active)||null; }
+
+async function api(path, opts){
+  const r = await fetch(path, opts);
+  let d = {}; try { d = await r.json(); } catch(e){}
+  if(!r.ok) throw new Error(d.error || ('HTTP '+r.status));
+  return d;
+}
+async function saveConfig(){
+  // 静默 return 会让调用方误以为保存成功, 必须让错误浮到界面上。
+  if(state.busy) throw new Error('上一次保存尚未结束，请稍候重试');
+  state.busy = true;
+  try {
+    const d = await api('/api/config', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(state.cfg)});
+    state.cfg = d.config || {code:'', bind:'', active:'', peers:[]};
+    if(!Array.isArray(state.cfg.peers)) state.cfg.peers = [];
+  } finally { state.busy = false; }
+}
+
+/* ---------------- 配置渲染 ---------------- */
+function renderTarget(){
+  const sel = $('#target'), c = state.cfg;
+  const cur = c ? c.active : '';
+  if(!c || !Array.isArray(c.peers) || !c.peers.length){
+    sel.innerHTML = '<option value="">（还没有对端，点右侧「设置」添加）</option>';
+    sel.disabled = true;
+    $('#drop-sub').innerHTML = '第一次使用：先点「设置」填一次对方的 IP、别名和配对码';
+    return;
+  }
+  sel.disabled = false;
+  sel.innerHTML = c.peers.map(p =>
+    `<option value="${esc(p.id)}"${p.id===cur?' selected':''}>${esc(p.alias)}　·　${esc(p.ip)}:${p.port}</option>`
+  ).join('');
+  const p = activePeer();
+  $('#drop-sub').innerHTML = p ? `发给 <b>${esc(p.alias)}</b> · 支持一次拖多个文件` : '或点击选择文件';
+}
+
+function renderSelf(){
+  const m = state.meta, c = state.cfg;
+  $('#self-code').textContent = c.code || '—';
+  $('#self-dir').textContent = m.dir || '—';
+  $('#self-name').textContent = m.name || '—';
+  const list = Array.isArray(m.allIPs) ? m.allIPs : [];
+  const cur = m.ip || c.bind || '';
+  const head = cur ? '' : '<option value="">— 请选择 —</option>';
+  $('#bind-sel').innerHTML = (list.length ? head : '<option value="">未检测到网卡（请插好网线）</option>') +
+    list.map(a => `<option value="${esc(a.ip)}"${a.ip===cur?' selected':''}>`+
+      `${esc(a.ip)}  ·  ${esc(a.iface)}${a.ip.startsWith('169.254.')?'  ·  链路本地':''}</option>`).join('');
+  const note = $('#bind-note');
+  if(!m.ip){
+    note.textContent = '尚未绑定直连地址，对端连不上。选择网卡后点「保存」。'; note.style.color = 'var(--warn)';
+  }else if(!m.ip.startsWith('169.254.')){
+    note.textContent = '当前是静态 IP 网段：确认内网线已拔下，且这块网卡只连对端；插回内网线前先关程序。';
+    note.style.color = 'var(--warn)';
+  }else{ note.textContent = '已就绪。'; note.style.color = 'var(--fg3)'; }
+}
+
+function renderPeers(){
+  const box = $('#peers'), c = state.cfg;
+  const list = Array.isArray(c.peers) ? c.peers : [];
+  if(!list.length){ box.innerHTML = '<div class="empty">暂无。填下面的表单添加第一个对端。</div>'; return; }
+  box.innerHTML = list.map(p => `<div class="peer-row">
+    <span class="nm">${esc(p.alias)}</span>
+    <span class="ad">${esc(p.ip)}:${p.port}</span>
+    ${p.id===c.active?'<span class="tag">默认</span>':''}
+    <button class="mini" data-act="edit" data-id="${esc(p.id)}">编辑</button>
+    <button class="mini" data-act="del" data-id="${esc(p.id)}">删除</button>
+  </div>`).join('');
+  box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    const id = b.dataset.id;
+    if(b.dataset.act === 'edit'){ startEdit(id); return; }
+    if(!confirm('删除这个对端？')) return;
+    state.cfg.peers = state.cfg.peers.filter(p => p.id !== id);
+    if(state.cfg.active === id) state.cfg.active = state.cfg.peers.length ? state.cfg.peers[0].id : '';
+    saveConfig().then(() => { renderAll(); probe(); });
+  }));
+}
+
+function startEdit(id){
+  const p = state.cfg.peers.find(x => x.id === id); if(!p) return;
+  state.editing = id;
+  $('#f-alias').value = p.alias; $('#f-ip').value = p.ip;
+  $('#f-code').value = p.code; $('#f-port').value = p.port;
+  $('#form-title').textContent = '编辑对端'; $('#btn-peer-cancel').hidden = false;
+  $('#settings').hidden = false; $('#f-alias').focus();
+  $('#form-note').innerHTML = '';
+}
+function resetForm(){
+  state.editing = '';
+  ['f-alias','f-ip','f-code'].forEach(i => $('#'+i).value = '');
+  $('#f-port').value = DEFAULT_PORT;
+  $('#form-title').textContent = '添加对端'; $('#btn-peer-cancel').hidden = true;
+  $('#form-note').innerHTML = '';
+}
+
+async function loadConfig(){
+  const d = await api('/api/config');
+  state.cfg = d.config || {code:'', bind:'', active:'', peers:[]};
+  // 老版本后端会把空列表序列化成 null, 这里兜底, 避免 .push / .length 抛错。
+  if(!Array.isArray(state.cfg.peers)) state.cfg.peers = [];
+  state.meta = d;
+  renderAll();
+}
+function renderAll(){ renderTarget(); renderSelf(); renderPeers(); renderSent(); }
+
+/* ---------------- 状态灯 ---------------- */
+async function probe(){
+  const p = activePeer(), st = $('#status');
+  if(!p){ st.textContent = '未配置对端'; st.className = 'pill off'; return; }
+  try{
+    const d = await api('/api/probe?id=' + encodeURIComponent(p.id));
+    const map = {
+      ok:      ['已连接 · ' + p.alias, 'on'],
+      oneway:  ['单向 · 对方连不上你', 'warn'],
+      badcode: ['配对码错误 · ' + p.alias, 'off'],
+      offline: ['未连接 · ' + p.alias, 'off'],
+      error:   ['对端异常 · ' + p.alias, 'off'],
+      none:    ['未配置对端', 'off'],
+    };
+    const [txt, cls] = map[d.state] || ['未知', 'off'];
+    st.textContent = txt; st.className = 'pill ' + cls;
+    // 单向可达时给一条常驻提示, 避免「我这边显示连上了」被误当成双向已通。
+    const warn = $('#warn');
+    if(d.state === 'offline' && d.detail){
+      warn.hidden = false; warn.dataset.kind = 'offline';
+      warn.textContent = '连不上「' + p.alias + '」：' + d.detail;
+    }else if(d.state === 'oneway'){
+      warn.hidden = false; warn.dataset.kind = 'oneway';
+      warn.textContent = '已连到「' + p.alias + '」，但本机没有在直连网卡上监听，对方连不上你（只能你单向发文件）。' +
+        '去「设置 → 直连网卡」选中插着对端网线的那块网卡，点「保存」。';
+    }else if(warn.dataset.kind === 'oneway' || warn.dataset.kind === 'offline' ||
+             (d.state === 'ok' && warn.dataset.kind === 'nobind')){
+      warn.hidden = true; warn.dataset.kind = '';
+    }
+  }catch(e){ st.textContent = '探测失败'; st.className = 'pill off'; }
+}
+
+/* ---------------- 发送记录 ---------------- */
+function renderSent(){
+  const box = $('#sent');
+  if(!state.items.length){ box.innerHTML = '<div class="empty">暂无记录</div>'; return; }
+  box.innerHTML = state.items.map((q,i) => {
+    const pct = q.total ? Math.min(100, q.loaded/q.total*100) : 0;
+    const cls = q.status==='done' ? 'bar done' : q.status==='error' ? 'bar err' : 'bar';
+    let right = q.status==='done' ? `<span class="st-done">完成 ${q.elapsed.toFixed(2)}s · ${fmtSize(q.total/q.elapsed)}/s</span>`
+      : q.status==='error' ? '<span class="st-err">失败</span>'
+      : q.status==='sending' ? `${fmtSize(q.loaded)} / ${fmtSize(q.total)}`
+      : '排队中';
+    return `<div class="item" data-i="${i}">
+      <div class="item-top"><span class="fname" title="${esc(q.name)}">${esc(q.name)}</span><span class="fmeta">${right}</span></div>
+      <div class="${cls}"><i style="width:${pct}%"></i></div>
+      ${q.err ? `<div class="errline">${esc(q.err)} <button class="mini" data-retry="${i}">重试</button></div>` : ''}
+    </div>`;
+  }).join('');
+  box.querySelectorAll('[data-retry]').forEach(b => b.addEventListener('click', () => {
+    const q = state.items[+b.dataset.retry];
+    q.status='queued'; q.loaded=0; q.err='';
+    renderSent(); pump();
+  }));
+}
+function patch(i){
+  const q = state.items[i], el = document.querySelector(`#sent .item[data-i="${i}"]`);
+  if(!el || !q) return;
+  const pct = q.total ? Math.min(100, q.loaded/q.total*100) : 0;
+  el.querySelector('.fmeta').textContent = `${fmtSize(q.loaded)} / ${fmtSize(q.total)}`;
+  el.querySelector('.bar i').style.width = pct + '%';
+}
+
+/* ---------------- 拖拽即发 ---------------- */
+function sendOne(q, peer){
+  return new Promise(resolve => {
+    const qs = new URLSearchParams({ peer: peer.id, name: q.name, size: String(q.total) });
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/send?' + qs.toString());
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    xhr.upload.onprogress = e => { q.loaded = e.loaded; patch(state.items.indexOf(q)); };
+    xhr.onload = () => {
+      let d = {}; try { d = JSON.parse(xhr.responseText || '{}'); } catch(e){}
+      q.elapsed = Math.max(0.01, (performance.now() - q.start)/1000);
+      if(xhr.status === 200){ q.status='done'; q.loaded=q.total; }
+      else { q.status='error'; q.err = d.error || ('HTTP ' + xhr.status); }
+      resolve();
+    };
+    xhr.onerror = () => { q.status='error'; q.err='连接中断'; resolve(); };
+    q.start = performance.now();
+    xhr.send(q.file);
+  });
+}
+
+async function pump(){
+  if(state.sending) return;
+  state.sending = true;
+  try{
+    while(true){
+      const q = state.items.find(x => x.status === 'queued');
+      if(!q) break;
+      const peer = activePeer();
+      if(!peer){ q.status='error'; q.err='未选择对端'; renderSent(); continue; }
+      q.status='sending'; q.loaded=0; renderSent();
+      await sendOne(q, peer);
+      renderSent();
+    }
+  } finally { state.sending = false; }
+}
+
+function addFiles(list){
+  const files = [...list].filter(f => f && typeof f.size === 'number');
+  if(!files.length) return;
+  const warn = $('#warn');
+  if(!state.cfg || !Array.isArray(state.cfg.peers) || !state.cfg.peers.length){
+    warn.hidden = false;
+    warn.textContent = '还没有保存对端。点右上角「设置」，填一次对方的 IP、别名和配对码，之后直接拖文件即可。';
+    $('#settings').hidden = false;
+    return;
+  }
+  warn.hidden = true;
+  for(const f of files) state.items.push({ name:f.name, file:f, total:f.size, loaded:0, status:'queued', err:'', elapsed:0 });
+  renderSent();
+  pump();
+}
+
+const drop = $('#drop'), fileInput = $('#file');
+drop.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { addFiles(fileInput.files); fileInput.value=''; });
+// 拖到窗口任意位置都触发, 并阻止浏览器直接打开文件
+['dragenter','dragover'].forEach(ev => window.addEventListener(ev, e => {
+  e.preventDefault(); if(e.dataTransfer) e.dataTransfer.dropEffect='copy'; document.body.classList.add('over');
+}));
+window.addEventListener('dragleave', e => { if(!e.relatedTarget) document.body.classList.remove('over'); });
+window.addEventListener('drop', e => {
+  e.preventDefault(); document.body.classList.remove('over');
+  if(e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+});
+
+/* ---------------- 交互 ---------------- */
+$('#target').addEventListener('change', async () => {
+  state.cfg.active = $('#target').value;
+  await saveConfig(); renderTarget(); probe();
+});
+
+$('#btn-settings').addEventListener('click', () => {
+  const s = $('#settings'); s.hidden = !s.hidden;
+  if(!s.hidden) s.scrollIntoView({behavior:'smooth', block:'nearest'});
+});
+$('#btn-settings-close').addEventListener('click', () => $('#settings').hidden = true);
+
+$('#self-code').addEventListener('click', async () => {
+  const c = $('#self-code').textContent; if(!c || c==='—') return;
+  try { await navigator.clipboard.writeText(c); $('#self-code').textContent='已复制';
+    setTimeout(()=>$('#self-code').textContent=c, 900); } catch(e){}
+});
+
+$('#btn-bind').addEventListener('click', async () => {
+  state.cfg.bind = $('#bind-sel').value;
+  try { await saveConfig(); }
+  catch(e){ alert('保存失败：'+e.message); }
+  await loadConfig(); probe();
+});
+
+$('#btn-peer-cancel').addEventListener('click', resetForm);
+$('#btn-peer-save').addEventListener('click', async () => {
+  const note = $('#form-note');
+  const alias = $('#f-alias').value.trim(), ip = $('#f-ip').value.trim();
+  const code = $('#f-code').value.trim(), port = parseInt($('#f-port').value,10) || DEFAULT_PORT;
+  if(!alias || !ip || !code){ note.innerHTML = '<div class="errline">别名、IP、对方配对码都要填。</div>'; return; }
+  const peer = { id: state.editing || '', alias, ip, code, port };
+  const isNew = !state.editing;
+  note.innerHTML = '<div class="hint">保存中…</div>';
+  try {
+    if(!Array.isArray(state.cfg.peers)) state.cfg.peers = [];
+    if(isNew){ state.cfg.peers.push(peer); }
+    else {
+      const i = state.cfg.peers.findIndex(p => p.id === state.editing);
+      if(i < 0) throw new Error('找不到正在编辑的对端，请刷新页面重试');
+      state.cfg.peers[i] = peer;
+    }
+    await saveConfig();                       // 后端为新 peer 生成 ID
+    if(!Array.isArray(state.cfg.peers)) state.cfg.peers = [];
+    if(isNew && state.cfg.peers.length){
+      state.cfg.active = state.cfg.peers[state.cfg.peers.length-1].id;
+      await saveConfig();
+    }
+    resetForm(); renderAll();
+    const d = await api('/api/probe?id='+encodeURIComponent(state.cfg.active||''));
+    if(d.state === 'ok') note.innerHTML = '<div class="okline">已保存，连接正常。</div>';
+    else if(d.state === 'oneway') note.innerHTML = '<div class="warn">已连到对方，但本机未绑定直连网卡：对方发不了文件给你。' +
+      '请在「设置 → 直连网卡」选中插着对端网线的网卡并保存。</div>';
+    else if(d.state === 'badcode') note.innerHTML = '<div class="errline">已保存，但对方配对码不正确。</div>';
+    else note.innerHTML = '<div class="errline">已保存，但暂时连不上对方。' +
+      (d.detail ? '底层错误：' + esc(d.detail) + '。' : '') +
+      '检查网线、地址与对方程序是否已启动。</div>';
+    probe();
+  } catch(e){ note.innerHTML = '<div class="errline">保存失败：'+esc(e.message)+'</div>'; }
+});
+
+$('#btn-clear').addEventListener('click', () => {
+  if(state.sending) return;
+  state.items = []; renderSent();
+});
+
+/* ---------------- 接收状态 ---------------- */
+async function pollRecv(){
+  try{
+    const d = await api('/api/info');
+    const ups = d.uploads || [], box = $('#recv');
+    let html = '';
+    for(const u of ups){
+      for(const f of u.files){
+        const p2 = f.size ? Math.min(100, f.written/f.size*100) : 0;
+        html += `<div class="item"><div class="item-top">
+          <span class="fname" title="${esc(f.name)}">${esc(f.name)}</span>
+          <span class="fmeta">${f.done?'<span class="st-done">已接收</span>':fmtSize(f.written)+' / '+fmtSize(f.size)}</span>
+        </div><div class="bar ${f.done?'done':''}"><i style="width:${p2}%"></i></div></div>`;
+      }
+      if(u.error) html += `<div class="errline">${esc(u.error)}</div>`;
+    }
+    if(!html && (d.history||[]).length)
+      html = '<div class="empty">空闲　最近接收：' + d.history.slice(0,3).map(h=>esc(h.name)).join('、') + '</div>';
+    box.innerHTML = html || '<div class="empty">空闲</div>';
+  }catch(e){}
+}
+
+/* ---------------- 启动 ---------------- */
+(async () => {
+  try { await loadConfig(); }
+  catch(e){ $('#status').textContent = '加载失败'; $('#status').className='pill off';
+    $('#warn').hidden=false; $('#warn').textContent = e.message; return; }
+  if(!Array.isArray(state.cfg.peers) || !state.cfg.peers.length) $('#settings').hidden = false;
+  const warn = $('#warn');
+  if(!state.meta.ip){
+    warn.hidden=false; warn.dataset.kind='nobind';
+    warn.textContent='未绑定直连地址。请在「设置 → 直连网卡」里选插着对端网线的那块网卡，点「保存」。';
+  }
+  probe();
+  setInterval(probe, 5000);
+  pollRecv(); setInterval(pollRecv, 700);
+})();
+</script>
+</body>
+</html>
